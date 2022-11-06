@@ -1,0 +1,32 @@
+
+7c28fa672:/opt/nvidia/deepstream/deepstream-5.1/samples/configs/tlt_pretrained_models# history 
+    1  GST_DEBUG=2 gst-launch-1.0 filesrc location=/opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! qtdemux name=c c.video_0 ! h265parse ! nvv4l2decoder ! fakesink
+    2  GST_DEBUG=2 gst-launch-1.0 filesrc location=/opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! qtdemux name=c c.video_0 ! h265parse ! nvv4l2decoder ! autovideosink
+    3  GST_DEBUG=2 gst-launch-1.0 filesrc location=/opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! qtdemux name=c c.video_0 ! h265parse ! nvv4l2decoder ! nvoverlaysink
+    4  GST_DEBUG=2 gst-launch-1.0 filesrc location=/opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! qtdemux name=c c.video_0 ! h265parse ! nvv4l2decoder ! nveglglessink
+
+
+
+
+ GST_DEBUG=3  gst-launch-1.0 -v filesrc location = ./sample_1080p_h264.mp4  ! qtdemux ! video/x-h264 ! rtph264pay config-interval=1 ! autovideosink 
+gst-launch-1.0 videotestsrc ! x264enc ! x264dec  ! autovideosink
+GST_DEBUG=3  gst-launch-1.0 playbin uri=file:///opt/nvidia/deepstream/deepstream-5.1/samples/streams/sample_720p.mp4 
+
+
+
+  2  cd streams/
+    3  gst-launch-1.0 videotestsrc ! autovideosink 
+    4  gst-launch-1.0 videotestsrc ! x264enc ! x264dec  ! autovideosink 
+    5  apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-doc gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+    6  apt-get update
+    7* apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-doc gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio  
+    8  gst-launch-1.0 videotestsrc ! x264enc ! x264dec  ! autovideosink 
+    9  gst-launch-1.0 videotestsrc ! x264enc ! ffdec  ! autovideosink 
+   10  gst-launch-1.0 videotestsrc ! x264enc   ! autovideosink 
+   11  gst-launch-1.0 playbin uri = ./sample_720p.mp4 
+   12  gst-launch-1.0 playbin uri = file://./sample_720p.mp4 
+   13  gst-launch-1.0 playbin uri=file://./sample_720p.mp4 
+   14  gst-launch-1.0 playbin uri=file:///opt/nvidia/deepstream/deepstream-5.1/samples/streamssample_720p.mp4 
+   15  gst-launch-1.0 playbin uri=file:///opt/nvidia/deepstream/deepstream-5.1/samples/streams/sample_720p.mp4 
+   16  GST_DEBUG=3  gst-launch-1.0 playbin uri=file:///opt/nvidia/deepstream/deepstream-5.1/samples/streams/sample_720p.mp4 
+   17  history 

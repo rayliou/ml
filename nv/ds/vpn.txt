@@ -1,0 +1,14 @@
+
+buspas@buspas-ndk:~$ sudo wg
+interface: wg0
+  public key: eGV5X1cIQ8GUrcwM5P2sNGTI+abuZtC8XI/RI7P0SR4=
+  private key: (hidden)
+  listening port: 51882
+
+peer: TblLMThI7rgCQFOG+6VwkswmzmVKFglwr3/eHqTdhR0=
+  endpoint: 23.92.148.131:51882
+  allowed ips: 10.0.20.0/24
+  transfer: 0 B received, 33.68 KiB sent
+  persistent keepalive: every 21 seconds
+buspas@buspas-ndk:~$
+
