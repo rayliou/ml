@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Recognition Demo</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Custom CSS -->
+  <style>
+    .btn-primary.record {
+      background-color: green;
+      border-color: green;
+    }
+    .btn-primary.stop {
+      background-color: red;
+      border-color: red;
+    }
+    .output {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: scroll;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mt-5 text-center">Voice Recognition Demo</h1>
+    <div class="row mt-4">
+      <div class="col-md-6 offset-md-3">
+        <button class="btn btn-lg btn-primary record">Start Recording</button>
+      </div>
+    </div>
+    <div class="row mt-4">
+      <div class="col-md-6 offset-md-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <h5 class="card-title">Action Display Area</h5>
+            <p class="card-text"><span id="action-display"></span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row mt-4">
+      <div class="col-md-6 offset-md-3">
+        <div class="output"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <!-- Custom JS -->
+  <script>
+
+        //  https://web.dev/media-recording-audio/
+      const handleSuccess = async function(stream) {
+        const context = new AudioContext({ sampleRate: 16000 });
+        const source = context.createMediaStreamSource(stream);
+
+        await context.audioWorklet.addModule("processor.js");
+        const worklet = new AudioWorkletNode(context, "worklet-processor");
+
+        source.connect(worklet);
+        worklet.connect(context.destination);
+      };
+    //////////////////////////////////////////////
+    let recognizer;
+    let outputContainer = document.querySelector('.output');
+    let actionDisplay = document.querySelector('#action-display');
+    let isRecording = false;
+
+    const recordButton = document.querySelector('.record');
+    recordButton.addEventListener('click', async () => {
+      if (isRecording) {
+        isRecording = false;
+        recordButton.classList.remove('stop');
+        recordButton.classList.add('record');
+        recordButton.innerText = 'Start Recording';
+      } else {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+              .then(handleSuccess);
+            recordButton.classList.remove('record');
+            recordButton.classList.add('stop');
+            recordButton.innerText = 'Stop Recording';
+            const action = "Intention....."
+            actionDisplay.innerHTML = action;
+            outputContainer.innerHTML += `
+              <p><strong>Result:</strong> ${action}</p>
+            `;
+            outputContainer.scrollTop = outputContainer.scrollHeight;
+            isRecording = true;
+      }
+    });
+
+    function arrayMaxIndex(arr) {
+      let maxIndex = 0;
+      for (let i = 1; i < arr.length; i++) {
+        if (arr[i] > arr[maxIndex]) {
+          maxIndex = i;
+        }
+      }
+      return maxIndex;
+    }
+  </script>
+</body>
+</html>
