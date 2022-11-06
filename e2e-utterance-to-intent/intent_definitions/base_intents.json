@@ -1,0 +1,41 @@
+[
+    {
+        "name": "play_music",
+        "description": "Play a specific music track or playlist.",
+        "slots": [
+            {
+                "name": "song_name",
+                "type": "string",
+                "description": "The name of the song to play"
+            },
+            {
+                "name": "artist_name",
+                "type": "string",
+                "optional": true,
+                "description": "The artist of the song"
+            }
+        ]
+    },
+    {
+        "name": "set_alarm",
+        "description": "Set an alarm at a specific time.",
+        "slots": [
+            {
+                "name": "alarm_time",
+                "type": "time",
+                "description": "Time to set the alarm"
+            }
+        ]
+    },
+    {
+        "name": "read_book",
+        "description": "Read a specified book out loud.",
+        "slots": [
+            {
+                "name": "book_title",
+                "type": "string",
+                "description": "Name of the book"
+            }
+        ]
+    }
+]

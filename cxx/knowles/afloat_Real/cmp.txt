@@ -1,0 +1,21 @@
+
+Please summarize your insight based on the following output results
+Here is the result using  afloat_to_float
+===
+...
+
+Diff=256.000000, PercentDiffReal=-0.000001%, PercentDiffAFloat=-0.000007%, f=10000.000000, base=-4294966832.000000, sum_expected=-4294956832.000000, sum_real=-4294956800.000000, sum_afloat=-4294956544.000000
+Add Test case:Total Count: 80002, Diff Count: 19944, Max Diff: -256.000000, Min Diff: 0.000000, Avg Diff: 256.000000, Percent of Diffs Not Equal: 24.929377%
+
+Max PercentDiffReal: 0.000002%, Min PercentDiffReal: -0.000001%, Avg PercentDiffReal: 0.000000%
+Max PercentDiffAFloat: -0.000004%, Min PercentDiffAFloat: -0.000007%, Avg PercentDiffAFloat: -0.000006%
+===
+Here is the result using  afloat_to_float_with_rounding
+===
+...
+Diff=-256.000000, PercentDiffReal=-0.000004%, PercentDiffAFloat=0.000002%, f=9859.500000, base=-4294966832.000000, sum_expected=-4294956972.500000, sum_real=-4294956800.000000, sum_afloat=-4294957056.000000.........................................................................................................................................................................................................................................................................................
+Add Test case:Total Count: 80002, Diff Count: 586, Max Diff: 256.000000, Min Diff: 0.000000, Avg Diff: 256.000000, Percent of Diffs Not Equal: 0.732482%
+
+Max PercentDiffReal: -0.000004%, Min PercentDiffReal: -0.000004%, Avg PercentDiffReal: -0.000004%
+Max PercentDiffAFloat: 0.000002%, Min PercentDiffAFloat: 0.000002%, Avg PercentDiffAFloat: 0.000002%
+===

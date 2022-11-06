@@ -1,0 +1,177 @@
+{
+  "$schema-template": "4.0.0",
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": { }
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.2.10",
+              "createOptions": {}
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.2.10",
+              "createOptions": {
+                "HostConfig": {
+                  "PortBindings": {
+                    "5671/tcp": [
+                      {
+                        "HostPort": "5671"
+                      }
+                    ],
+                    "8883/tcp": [
+                      {
+                        "HostPort": "8883"
+                      }
+                    ],
+                    "443/tcp": [
+                      {
+                        "HostPort": "443"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "modules": {
+          "DS601_x": {
+            "version": "1.1",
+            "type": "docker",
+            "status": "stopped",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "nvcr.io/nvidia/deepstream-l4t:6.0.1-samples",
+              "createOptions": {
+                  "HostConfig": {
+                    "Privileged": true,
+                    "Binds": [
+                      "/home/buspas/g_nv/ds/6.0.1/azure/test_azure_iotedge.sh:/test_azure_iotedge.sh"
+                    ]
+                  },
+                "ENTRYPOINT": [ "/test_azure_iotedge.sh", "test_azure_iotedge_sync" ]
+              }
+            }
+          },
+          "DS601": {
+            "version": "1.7",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "nvcr.io/nvidia/deepstream-l4t:6.0.1-samples",
+              "createOptions": {
+                "HostConfig": {
+                  "Devices": [
+                    {
+                      "PathOnHost": "/dev/video0",
+                      "PathInContainer": "/dev/video0",
+                      "CgroupPermissions": "rwm"
+                    }
+                  ],
+                  "DeviceRequests": [
+                    {
+                      "Capabilities": [
+                        [
+                          "gpu"
+                        ]
+                      ],
+                      "Count": -1
+                    }
+                  ],
+                  "Binds": [
+                    "/home/buspas/g_nv/ds/6.0.1:/opt/nvidia/deepstream/deepstream-6.0/samples/models/tlt_pretrained_models",
+                    "/home/buspas/g_nv/ds/6.0.1/data_src:/data_src",
+                    "/home/buspas/g_nv/ds/6.0.1/tlt_pretrained_models/:/opt/nvidia/deepstream/deepstream-6.0/samples/configs/tlt_pretrained_models",
+                    "/home/buspas/g_nv/ds/6.0.1/data_src/6.0.1-deepstream_app_source1_trafficcamnet.txt:/opt/nvidia/deepstream/deepstream-6.0/samples/configs/tlt_pretrained_models/deepstream_app_source1_trafficcamnet.txt",
+
+
+                    "/usr/sbin/nvargus-daemon:/usr/sbin/nvargus-daemon",
+                    "/tmp/argus_socket:/tmp/argus_socket",
+                    "/var/nvidia/nvcam/settings:/var/nvidia/nvcam/settings",
+                    "buspas_volume_logging:/mnt/logging/"
+                  ]
+                },
+              "WorkingDir": "/opt/nvidia/deepstream/deepstream-6.0/samples/configs/tlt_pretrained_models",
+              "ENTRYPOINT": ["/data_src/entrypoint.sh"]
+              }
+            }
+          },
+          "DS601_v1": {
+            "version": "1.6",
+            "type": "docker",
+            "status": "stopped",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "nvcr.io/nvidia/deepstream-l4t:6.0.1-samples",
+              "createOptions": {
+                "HostConfig": {
+                  "Memory": 209715200,
+                  "NanoCpus": 50000000,
+                  "Devices": [
+                    {
+                      "PathOnHost": "/dev/video0",
+                      "PathInContainer": "/dev/video0",
+                      "CgroupPermissions": "rwm"
+                    }
+                  ],
+                  "DeviceRequests": [
+                    {
+                      "Capabilities": [
+                        [
+                          "gpu"
+                        ]
+                      ],
+                      "Count": -1
+                    }
+                  ],
+                  "Binds": [
+                    "/home/buspas/g_nv/ds/6.0.1:/opt/nvidia/deepstream/deepstream-6.0/samples/models/tlt_pretrained_models",
+                    "/home/buspas/g_nv/ds/6.0.1/data_src:/data_src",
+                    "/home/buspas/g_nv/ds/6.0.1/tlt_pretrained_models/:/opt/nvidia/deepstream/deepstream-6.0/samples/configs/tlt_pretrained_models",
+                    "/home/buspas/g_nv/ds/6.0.1/data_src/6.0.1-deepstream_app_source1_trafficcamnet.txt:/opt/nvidia/deepstream/deepstream-6.0/samples/configs/tlt_pretrained_models/deepstream_app_source1_trafficcamnet.txt",
+
+
+                    "/usr/sbin/nvargus-daemon:/usr/sbin/nvargus-daemon",
+                    "/tmp/argus_socket:/tmp/argus_socket",
+                    "/var/nvidia/nvcam/settings:/var/nvidia/nvcam/settings",
+                    "buspas_volume_logging:/mnt/logging/"
+                  ]
+                },
+              "WorkingDir": "/opt/nvidia/deepstream/deepstream-6.0/samples/configs/tlt_pretrained_models",
+              "ENTRYPOINT": ["/data_src/entrypoint.sh"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "routes": {
+          "DS601ToIoTHub": "FROM /messages/modules/DS601/outputs/* INTO $upstream"
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    }
+  }
+}
