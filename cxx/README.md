@@ -1,6 +1,6 @@
 
 - Use clang instead of gcc
-``
+```
 VER=10 #18.04
 VER=14 #Ubuntu 22.04
 sudo apt install -y clang-$VER lld-$VER
