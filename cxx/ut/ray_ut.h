@@ -1,8 +1,10 @@
 #pragma once
+
+//#define __UT__WITH_MAIN__
 #include <cstdio>
 
 #define REQUIRE(cond) if (!(cond)) {\
-    printf("%s:%d: Failed: %s\n", __FILE__, __LINE__, #cond); return false;\
+    __ut_ret__ = false; printf("%s:%d: Failed: %s\n", __FILE__, __LINE__, #cond); return;\
 }
 
 #define TEST_CASE(name) TEST_CASE_(name, __COUNTER__)
@@ -10,13 +12,13 @@
 
 //Insert the test case by the constructor of the global variable  test_instance_##counter
 #define TEST_CASE__(name, counter) \
-    bool test_func_##counter();\
+    void test_func_##counter(bool &);\
     struct test_##counter##_t {\
         test_##counter##_t() {\
             Tests::add_test(test_func_##counter, name);\
         }\
     } test_instance_##counter;\
-    bool test_func_##counter()
+    void test_func_##counter(bool &__ut_ret__)
 
 #ifndef MAX_CASE_NUM 
 #define MAX_CASE_NUM  2048
@@ -24,7 +26,7 @@
 
 class Tests {
 public:
-    typedef bool(*test_func)();
+    typedef void (*test_func)(bool &__ut_ret__);
     struct test_t {
         test_func function;
         const char* name;
@@ -37,12 +39,10 @@ public:
 
     static void run_tests(const char* filter = "*") {
             for (int i = 0; i < num_tests; ++i) {
+                bool __ut_ret__ {true};
                 if(match(filter, tests[i].name)) {
-                    if(tests[i].function()) {
-                        printf("%s: Passed\n", tests[i].name);
-                    } else {
-                        printf("%s: Failed\n", tests[i].name);
-                    }
+                    tests[i].function(__ut_ret__);
+                    printf("%s: %s\n", tests[i].name, (__ut_ret__?"Passed":"Failed"));
                 }
             }
         }
@@ -103,5 +103,4 @@ int main(int argc, char* argv[]) {
 
 TEST_CASE("My first test") {
     REQUIRE(1 == 1);
-    return true;
 }
