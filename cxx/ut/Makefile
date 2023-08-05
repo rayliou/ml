@@ -1,3 +1,4 @@
+CXXFLAGS+=-std=c++17 -g
 
 all:ray_ut
 	echo The binary $^ was created!
