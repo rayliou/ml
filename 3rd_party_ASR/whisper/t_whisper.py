@@ -1,3 +1,4 @@
+#!/home/xiaorui/anaconda3/bin/python3
 import whisper
 import logging
 
