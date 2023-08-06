@@ -18,6 +18,7 @@ class AudioStreamHandler:
 
     def process_stream_data(self, stream_data):
         data = np.frombuffer(stream_data, dtype=np.int16)
+        data = data.astype(np.float32) / 32768.0
         self.queue_ = np.concatenate((self.queue_, data))
         segment_size = self.rate_ * 1.75 if self.first_ else self.process_size_
         if len(self.queue_) - self.start_ >= segment_size:
@@ -25,7 +26,7 @@ class AudioStreamHandler:
             start_ms = int(self.start_ * 1000 / self.rate_)
             end_ms = int(end * 1000 / self.rate_)
             self.logger.debug(f"handle_audio_segment([{self.start_}:{end}]), time range: [{start_ms}ms:{end_ms}ms];abs_start_ms:{self.abs_start_ * 1000 / self.rate_}")
-            self.handle_audio_segment(self.queue_[self.start_: end])
+            self.handle_audio_segment(self.queue_[self.start_: end],self.abs_start_)
             self.start_ = int(self.start_ + segment_size - self.overlap_)
             self.abs_start_ += (segment_size - self.overlap_)
             self.first_ = False
@@ -37,7 +38,17 @@ class AudioStreamHandler:
             self.start_ -= drop_size  # adjust starting point accordingly
             self.logger.debug(f"Drop:{drop_size*1000/self.rate_}ms,start:{self.start_*1000/self.rate_}ms")
 
-    def handle_audio_segment(self, audio_segment):
+    def finish(self):
+        end = len(self.queue_)
+        if end <= self.start_ +1:
+            return
+        start_ms = int(self.start_ * 1000 / self.rate_)
+        end_ms = int(end * 1000 / self.rate_)
+        self.logger.debug(
+            f"handle_audio_segment([{self.start_}:{end}]), time range: [{start_ms}ms:{end_ms}ms];abs_start_ms:{self.abs_start_ * 1000 / self.rate_}")
+        self.handle_audio_segment(self.queue_[self.start_: end], self.abs_start_)
+
+    def handle_audio_segment(self, audio_segment,abs_start):
         # Handle audio processing here
         pass
 
@@ -55,6 +66,7 @@ def main(read_time_ms):
     while True:
         stream_data = sys.stdin.buffer.read(read_size_bytes)  # read data from stdin
         if not stream_data:
+            hrAudio.finish()
             break
         start = cnt *read_time_ms
         cnt+=1
