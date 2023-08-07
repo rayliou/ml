@@ -16,6 +16,8 @@ model = whisper.load_model("base")
 audio = whisper.load_audio("/data/xiaorui/101_audios/01cmd_hi_anita_pause_the_song.wav")
 audio = whisper.load_audio("/data/xiaorui/101_audios/wav_ces/hi_anita_battery_left.wav")
 file_path = "/home/xiaorui/W/deepgram/10secs_english_speech.wav"
+file_path = "/data/xiaorui/101_audios/wav_ces/hi_anita_answer_call.wav"
+file_path = "/data/xiaorui/101_audios/wav_ces/hi_anita_battery_left.wav"
 audio = whisper.load_audio(file_path)
 logger.info(f"Processing file {file_path}")
 logger.info("start padding")
