@@ -9,6 +9,8 @@ from faster_whisper import WhisperModel
 import logging
 import numpy as np
 import librosa
+import re
+
 from audio_stream_handler import AudioStreamHandler
 
 """
@@ -55,6 +57,8 @@ def main(read_time_ms=200):
     class ASR_AudioStreamHandler(AudioStreamHandler):
         def __init__(self, rate=16000, bits=16):
             super().__init__(rate, bits)
+            self.last_word_in_prev_seg_ = None
+            self.text_ = ""
         def preheat_model(self):
             return
             # Preheat model with 3 second of zeros (numpy float32 data)
@@ -67,22 +71,64 @@ def main(read_time_ms=200):
         def handle_audio_segment(self, audio_segment, abs_start):
 
             self.logger.info("Start transcribe")
-            segments, info = model.transcribe(audio_segment, beam_size=5, language = "en",
+            segments, info = model.transcribe(audio_segment, beam_size=5, language = "zh",
                                               vad_filter=True,
                                               condition_on_previous_text=False, word_timestamps=True,temperature=0.1)
             #self.logger.info(info)
+            if self.first_:
+                self.text_ = ""
+            if self.last_word_in_prev_seg_ is not None:
+                w = self.last_word_in_prev_seg_
+                self.logger.info( f"abs_start:{self.abs_start_ * 1000 / self.rate_}ms;[{w.start}:{w.end}]:{w.probability:.3f}\t{w.word}")
+                self.text_  += " "
+                self.text_ += w.word
             cnt_s = 0
+            # The whole time range consists of 3 part
+            # t0 t1: overlap the previous window with self.overlap_ if not first else 0
+            # t1 t2: the actual effective content
+            # t2 t3:
+            start_sec = 0 if self.first_ else self.overlap_sec_
+            end_sec   = self.segment_sec_ - self.overlap_sec_
+            with_last_word = False
             for segment in segments:
-                cnt_w = 0
-                #self.logger.info(f"[{segment.start}:{segment.end}]:{segment.text}")
                 for w in segment.words:
                     if w.probability < 0.15:
                         continue
-                    self.logger.info(f"seg:word[{cnt_s}:{cnt_w}];abs_start:{self.abs_start_*1000/self.rate_}ms;[{w.start}:{w.end}]:{w.probability:.3f}\t{w.word}")
-                    cnt_w +=1
+                    if w.start > end_sec:
+                        continue
+                    # remove the 1st word
+                    elif w.start < start_sec:
+                        if self.last_word_in_prev_seg_ is None:
+                            self.logger.info(
+                                f"abs_start:{self.abs_start_ * 1000 / self.rate_}ms;[{w.start}:{w.end}]:{w.probability:.3f}\t{w.word}")
+                            self.text_ += " "
+                            self.text_ += w.word
+                        else: #else there is remained last word in previous seg.
+                            if w.start == 0.0:
+                                self.last_word_in_prev_seg_ = None
+                                continue
+                            else:
+                                clean_word = re.sub(r'[!.,;?]+$', '', w.word)
+                                if self.last_word_in_prev_seg_.word == clean_word:
+                                    self.last_word_in_prev_seg_ = None
+                                    continue
+                    else: #w.start == 0:
+                        if w.end > end_sec:  # cross t2
+                            w1 = { "start" : w.start, "end": w.end, "word":w.word, "probability":w.probability }
+                            w = type('MyWord',(),w1)()
+                            w.word = re.sub(r'[!.,;?]+$', '', w.word)
+                            self.last_word_in_prev_seg_ = w
+                            with_last_word = True
+                            self.logger.debug( f"CROSS t2: abs_start:{self.abs_start_ * 1000 / self.rate_}ms;[{w.start}:{w.end}]:{w.probability:.3f}\t{w.word}")
+                            break
+                        else: #Normal
+                            self.logger.info( f"abs_start:{self.abs_start_ * 1000 / self.rate_}ms;[{w.start}:{w.end}]:{w.probability:.3f}\t{w.word}")
+                            self.text_  += " "
+                            self.text_ += w.word
                 cnt_s +=1
-            #print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
-            pass
+            if not with_last_word:
+                self.last_word_in_prev_seg_ = None
+            return self.text_
 
     hrAudio = ASR_AudioStreamHandler()
     hrAudio.logger.setLevel(logging.INFO)
@@ -93,12 +139,14 @@ def main(read_time_ms=200):
     file_path = "/data/xiaorui/101_audios/wav_ces/hi_anita_answer_call.wav"
     file_path = "/data/xiaorui/101_audios/wav_ces/hi_anita_battery_left.wav"
     file_path = "/home/xiaorui/W/deepgram/10secs_english_speech.wav"
+    file_path = "./output_16k_mono.wav"
     logger.info(f"Start recognize the file {file_path}")
     with open(file_path, 'rb') as f:  # open the file in binary mode
         while True:
             stream_data = f.read(read_size_bytes)  # read from the file
             if not stream_data:
-                hrAudio.finish()
+                text = hrAudio.finish()
+                logger.warning(f"Final text:{text}")
                 break
             start = cnt * read_time_ms
             cnt += 1

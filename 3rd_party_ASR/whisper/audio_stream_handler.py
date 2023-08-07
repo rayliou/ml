@@ -15,20 +15,23 @@ class AudioStreamHandler:
         self.first_ = True
         self.start_ = 0  # starting point for processing
         self.abs_start_ = 0  # from the absolute zero ms of the stream
+        self.segment_size_ = self.rate_ * 1.75 if self.first_ else self.process_size_
+
+        self.segment_sec_ = 1.0* self.segment_size_/rate
+        self.overlap_sec_ = 1.0 *self.overlap_ / rate
 
     def process_stream_data(self, stream_data):
         data = np.frombuffer(stream_data, dtype=np.int16)
         data = data.astype(np.float32) / 32768.0
         self.queue_ = np.concatenate((self.queue_, data))
-        segment_size = self.rate_ * 1.75 if self.first_ else self.process_size_
-        if len(self.queue_) - self.start_ >= segment_size:
-            end  = int(self.start_ + segment_size)
+        if len(self.queue_) - self.start_ >= self.segment_size_:
+            end  = int(self.start_ + self.segment_size_)
             start_ms = int(self.start_ * 1000 / self.rate_)
             end_ms = int(end * 1000 / self.rate_)
             self.logger.debug(f"handle_audio_segment([{self.start_}:{end}]), time range: [{start_ms}ms:{end_ms}ms];abs_start_ms:{self.abs_start_ * 1000 / self.rate_}")
             self.handle_audio_segment(self.queue_[self.start_: end],self.abs_start_)
-            self.start_ = int(self.start_ + segment_size - self.overlap_)
-            self.abs_start_ += (segment_size - self.overlap_)
+            self.start_ = int(self.start_ + self.segment_size_ - self.overlap_)
+            self.abs_start_ += (self.segment_size_ - self.overlap_)
             self.first_ = False
 
         # Drop oldest data from queue if size exceeds 10 seconds
@@ -46,11 +49,11 @@ class AudioStreamHandler:
         end_ms = int(end * 1000 / self.rate_)
         self.logger.debug(
             f"handle_audio_segment([{self.start_}:{end}]), time range: [{start_ms}ms:{end_ms}ms];abs_start_ms:{self.abs_start_ * 1000 / self.rate_}")
-        self.handle_audio_segment(self.queue_[self.start_: end], self.abs_start_)
+        text = self.handle_audio_segment(self.queue_[self.start_: end], self.abs_start_)
+        return text
 
     def handle_audio_segment(self, audio_segment,abs_start):
-        # Handle audio processing here
-        pass
+        return ""
 
 def main(read_time_ms):
     logger = logging.getLogger('main')
