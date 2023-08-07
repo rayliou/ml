@@ -21,8 +21,8 @@ logger.addHandler(handler)
 """
 
 
-model_size = "base"
 model_size = "small"
+model_size = "base"
 model = WhisperModel(model_size, device="auto", compute_type="float32")
 
 def configure_logger(name, level=logging.DEBUG):
@@ -56,6 +56,7 @@ def main(read_time_ms=200):
         def __init__(self, rate=16000, bits=16):
             super().__init__(rate, bits)
         def preheat_model(self):
+            return
             # Preheat model with 3 second of zeros (numpy float32 data)
             audio_3s = np.load("./10s_16khz.npy")
             self.handle_audio_segment(audio_3s, 0)
@@ -89,9 +90,9 @@ def main(read_time_ms=200):
 
     read_size_bytes = read_time_ms * 2 * hrAudio.rate_ // 1000  # convert ms to bytes
     cnt = 0
-    file_path = "/home/xiaorui/W/deepgram/10secs_english_speech.wav"
     file_path = "/data/xiaorui/101_audios/wav_ces/hi_anita_answer_call.wav"
     file_path = "/data/xiaorui/101_audios/wav_ces/hi_anita_battery_left.wav"
+    file_path = "/home/xiaorui/W/deepgram/10secs_english_speech.wav"
     logger.info(f"Start recognize the file {file_path}")
     with open(file_path, 'rb') as f:  # open the file in binary mode
         while True:
