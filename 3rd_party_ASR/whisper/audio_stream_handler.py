@@ -6,21 +6,23 @@ import logging
 class AudioStreamHandler:
     def __init__(self, rate=16000, bits=16):
         self.logger = logging.getLogger("main." + self.__class__.__name__)
+        self.overlap_sec_ = 0.5
+
         self.rate_ = rate
         self.bits_ = bits
         self.queue_size_ = rate * 10  # 10 seconds of audio
         self.queue_ = np.array([], dtype=np.int16)
-        self.overlap_ = rate // 4  # 250ms overlap
-        self.process_size_ = rate * 2  # process every 2 seconds
+        self.overlap_ = int(rate * self.overlap_sec_)
         self.first_ = True
-        self.start_ = 0  # starting point for processing
+        self.start_ = 0  # starting point for processinG
         self.abs_start_ = 0  # from the absolute zero ms of the stream
-        self.segment_size_ = self.rate_ * 1.75 if self.first_ else self.process_size_
-
-        self.segment_sec_ = 1.0* self.segment_size_/rate
-        self.overlap_sec_ = 1.0 *self.overlap_ / rate
+        self.set_segment_buffer()
+    def set_segment_buffer(self):
+        self.segment_sec_ = self.overlap_sec_ * (4 if self.first_ else 5)
+        self.segment_size_ = int(self.segment_sec_ * self.rate_)
 
     def process_stream_data(self, stream_data):
+        self.set_segment_buffer()
         data = np.frombuffer(stream_data, dtype=np.int16)
         data = data.astype(np.float32) / 32768.0
         self.queue_ = np.concatenate((self.queue_, data))
@@ -53,6 +55,10 @@ class AudioStreamHandler:
         return text
 
     def handle_audio_segment(self, audio_segment,abs_start):
+        from scipy.io import wavfile
+        audio_segment_int16 = np.int16(audio_segment * 32767)
+        sample_rate = 16000
+        wavfile.write(f'{1.0 * self.abs_start_/self.rate_}s.wav', sample_rate, audio_segment_int16)
         return ""
 
 def main(read_time_ms):
