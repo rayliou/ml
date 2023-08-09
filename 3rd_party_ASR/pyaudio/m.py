@@ -49,7 +49,7 @@ async def main():
     data = sys.stdin.buffer.read(4000) # 4000 250ms
     if data:
       deepgramLive.send(data)
-      logger.debug(f"send data {cnt}")
+      #logger.debug(f"send data {cnt}")
       cnt += 1
     else:
       break  # break if there is no more data

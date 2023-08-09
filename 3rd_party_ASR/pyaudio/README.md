@@ -6,6 +6,18 @@
 - https://github.com/deepgram/deepgram-python-sdk
 - https://developers.deepgram.com/docs/python-sdk-streaming-transcription
 # API key:
+- d263b67a41437cb1a1ddb2bef57efa3fc1d360a5
+
+# FYI
+
+- https://github.com/DamienDeepgram/satori
+- https://github.com/deepgram/streaming-test-suite
+- https://developers.deepgram.com/reference/streaming#stream-keepalive
+- https://developers.deepgram.com/docs/encoding
+- https://developers.deepgram.com/docs/sample-rate
+- https://developers.deepgram.com/docs/endpointing
+
+
 
 
 ```mermaid

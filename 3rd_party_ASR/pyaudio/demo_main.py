@@ -2,13 +2,13 @@
 import asyncio
 import sys,time
 import subprocess
-from deepgram import Deepgram
 import numpy as np
 import configparser
 import argparse
 import aiohttp
 import struct
 import logging
+import websockets,json
 
 from mic_device import MicDevice
 
@@ -58,7 +58,7 @@ class OpenAIGPTLLMClient:
         self.enable = config.get(self.__class__.__name__, 'enable', fallback=True)
         self.enable = False if self.enable.strip().lower() == "false" else True
         self.logger.debug(f"api_key:{self.api_key}")
-        self.session = aiohttp.ClientSession()  # 创建一个aiohttp的会话对象，用于管理所有的HTTP请求和响应
+        self.session = aiohttp.ClientSession()
 
     async def send_and_receive(self, question):
         """ https://platform.openai.com/docs/api-reference/making-requests """
@@ -70,105 +70,129 @@ class OpenAIGPTLLMClient:
             "Authorization": f"Bearer {self.api_key}",
         }
         json_body  = {
-            "temperature": 0.7,
+            "temperature": 0.5,
             "model": "gpt-3.5-turbo",
              "messages": [
-                 {"role": "system", "content": "You are a general AI assistant, please respond to questions according to my needs."},
+                 {"role": "system", "content": "You are a general AI assistant; please respond to questions based on my needs, using the language of the question"},
                  {"role": "user", "content": question}
              ],
         }
         async with self.session.request("POST", url, headers=headers, json=json_body) as response:
-            return await response.json()
+            ret =  await response.json()
+            try:
+                ret = ret['choices'][0]['message']['content']
+            except Exception as e:
+                self.logger.warning(f"An error occurred: {e}")
+                ret = "An error occurred when fetching result from OpenAI."
+            return ret
 
     async def close(self):
         await self.session.close()  # 关闭aiohttp的会话
 
-class DeepgramASRClient:
+class WsDeepgramASRClient:
     def __init__(self, config):
         self.logger = logging.getLogger("main." + self.__class__.__name__)
-        self.api_key_ = config.get('DeepgramASRClient', 'DEEPGRAM_API_KEY', fallback='')
-        if self.api_key_ == "" :
-            print("Please set the correct DEEPGRAM_API_KEY in the section of DeepgramASRClient on the configuration file")
-            sys.exit(0)
-        self.deepgram_ = Deepgram(self.api_key_)
-        self.deepgramLive_ = None
+        self.api_key_ = config.get(self.__class__.__name__, 'DEEPGRAM_API_KEY', fallback='xxxxxxx')
+        self.host_ = config.get(self.__class__.__name__, 'host', fallback="wss://api.deepgram.com")
+        self.language_  = config.get(self.__class__.__name__, 'language', fallback="en")
+        self.interim_results_ = config.get(self.__class__.__name__, 'interim_results', fallback="true")
         self.disconnected_ = False
+        self.text_updated_ = False
         self.text_ = ""
         self.start_time_ = time.time()
-
-        self.record_mode_ = config.getboolean('Device', 'record_mode', fallback=False)
+        self.record_mode_ = config.getboolean(self.__class__.__name__, 'record_mode', fallback=False)
         if self.record_mode_:
-            self.record_file_ = config.get('Device', 'record_file', fallback='record.wav')
+            self.record_file_ = config.get(self.__class__.__name__, 'record_file', fallback='record.wav')
             self.file_ = None
+        self.ws_ = None
 
     async def connect(self):
         if self.record_mode_:
             self.file_ = open(self.record_file_, 'wb')
+        deepgram_url = f'{self.host_}/v1/listen?punctuate=true'
+        deepgram_url += f"&interim_results={self.interim_results_}&language={self.language_}"
+        deepgram_url += "&encoding=linear16&sample_rate=16000"
+        extra_headers = {"Authorization": "Token {}".format(self.api_key_)}
         try:
-            self.deepgramLive_ = await self.deepgram_.transcription.live({
-                'smart_format': True,
-                'interim_results': False,
-                'language': 'en-US',
-                'model': 'nova',
-            })
-            self.deepgramLive_.registerHandler(self.deepgramLive_.event.TRANSCRIPT_RECEIVED, self.handle_transcript)
-            self.deepgramLive_.registerHandler(self.deepgramLive_.event.CLOSE, self.handle_close)
-            self.logger.debug(f"ASR Live was created")
-
-        except Exception as e:
-            print(f'Could not open socket: {e}')
+            #self.logger.debug(f'Calling websockets.connect({deepgram_url}, extra_headers={extra_headers})')
+            self.ws_ = await websockets.connect(deepgram_url, extra_headers=extra_headers)
+            self.logger.info(f'ℹ️  Request ID: {self.ws_.response_headers.get("dg-request-id")}')
+            self.logger.info("🟢 (1/5) Successfully opened Deepgram streaming connection")
+            asyncio.create_task(self.receiver(self.ws_))
+        except websockets.exceptions.InvalidStatusCode as e:
+            self.logger.fatal(f"WebSocket connection failed with status code {e.status_code}. Response headers: {e.response_headers}")
             sys.exit(1)
 
-    def handle_transcript(self, transcript):
-        text = self.get_asr_transcript_text(transcript)
-        if text != "":
-            self.text_ += " "
-            self.text_ += text
+    async def send_audio(self, audio):
+        if self.disconnected_:
+            self.logger.debug(f"disconnected_:{self.disconnected_};ws:{self.ws_}")
+            return
+        if self.record_mode_:
+            self.file_.write(audio)
+        try:
+            await self.ws_.send(audio)
+        except websockets.exceptions.ConnectionClosedOK:
+            #await self.ws_.send(json.dumps({"type": "CloseStream"}))
+            self.logger.warning( "🟢 (5/5) Successfully closed Deepgram connection, waiting for final transcripts if necessary")
+            self.disconnected_ = True
+            pass
+        except Exception as e:
+            self.logger.error (f"Error while sending: {str(e)}")
+            self.disconnected_ = True
+            raise
 
-    def get_asr_transcript_text(self, transcript):
-        """
-        start = transcript.get('start', 'NA')
-        duration = transcript.get('duration', 'NA')
+    async def receiver(self, ws):
+        first_message = True
+        async for msg in ws:
+            res = json.loads(msg)
+            if first_message:
+                self.logger.info(
+                    "🟢 (3/5) Successfully receiving Deepgram messages, waiting for finalized transcription..."
+                )
+                first_message = False
+            try:
+                transcript = (
+                    res.get("channel", {})
+                    .get("alternatives", [{}])[0]
+                    .get("transcript", "")
+                ).strip()
+                if res.get("is_final"):
+                    self.text_ += transcript
+                if transcript != "":
+                    self.text_updated_ = True
+                    self.logger.debug(transcript)
+                if res.get("created"):
+                    self.logger.info(
+                        f'🟢 Request finished with a duration of {res["duration"]} seconds. Exiting!'
+                    )
+            except KeyError:
+                print(f"🔴 ERROR: Received unexpected API response! {msg}")
 
-        if start != 'NA' and duration != 'NA':
-            end_time = start + duration
-        else:
-            end_time = 'NA'
-        """
-        confidence = transcript.get('channel', {}).get('alternatives', [{}])[0].get('confidence', 0)
-        t_transcript = transcript.get('channel', {}).get('alternatives', [{}])[0].get('transcript', 'NA')
-        speech_final = transcript.get('speech_final', 'NA')
-        is_final = transcript.get('is_final', 'NA')
-        #self.logger.debug(f"[{start}:{end_time}][D:{duration}] C: {confidence:.2f}, {t_transcript}, \t Speech_final: {speech_final}, Is_final: {is_final}")
-        self.logger.info(f"C:{confidence:.2f}, {t_transcript}, \t Speech_final: {speech_final}, Is_final: {is_final}")
-        return t_transcript.strip()
-
-
+                #if method == "mic" and "goodbye" in transcript.lower():
+                #    await ws.send(json.dumps({"type": "CloseStream"}))
+                #    print(
+                #        "🟢 (5/5) Successfully closed Deepgram connection, waiting for final transcripts if necessary"
+                #    )
     def handle_close(self, code):
         self.disconnected_ = True
         self.logger.warning(f'Connection closed with code {code}.')
 
-    async def send_audio(self, audio):
-        if self.disconnected_:
-            return
-        if self.record_mode_:
-            self.file_.write(audio)
-        if self.deepgramLive_:
-            self.deepgramLive_.send(audio)
 
     async def disconnect(self):
         if self.record_mode_:
             self.file_.close()
             self.logger.info("Close record audio file")
-        if self.deepgramLive_:
+        if self.ws_:
             self.logger.info("Close deepgramLive_")
             self.disconnected_ = True
-            await self.deepgramLive_.finish()
+            await self.ws_.send(json.dumps({"type": "CloseStream"}))
+            await self.ws_.close()
+
 
 class DeviceManager:
     def __init__(self,config, device, asr_client, llm_client):
         self.asr_session_timeout_ = float(config.get(self.__class__.__name__, 'asr_session_timeout', fallback=20))
-        self.non_speech_timeout_  = float(config.get(self.__class__.__name__, 'non_speech_timeout', fallback=5))
+        self.non_speech_timeout_  = float(config.get(self.__class__.__name__, 'non_speech_timeout', fallback=2.5))
         self.logger = logging.getLogger("main." + self.__class__.__name__)
         self.device_ = device
         self.asr_client_ = asr_client
@@ -176,21 +200,23 @@ class DeviceManager:
 
 
     async def disconnect_asr_after_timeout(self, timeout):
-        self.logger.debug(f"ASR timeout {timeout} s")
         secs_passed = 0
-        self.non_speech_timeout = 5
         non_speech_secs_passed  = 0
-        last_text = ""
+        wait_1st_reply = True
         while secs_passed < timeout:
             if int(2 * secs_passed) % 2 == 0:
-                self.logger.warning("=" * int(secs_passed))
+                #self.logger.debug("=" * int(secs_passed))
+                pass
             await asyncio.sleep(0.5)
             secs_passed += 0.5
             non_speech_secs_passed += 0.5
-            if self.asr_client_.text_ != last_text:
-                last_text = self.asr_client_.text_
-                non_speech_secs_passed = 0.5
-            elif last_text != "" and  non_speech_secs_passed > self.non_speech_timeout_:
+            non_speech_timeout =  4.5 if wait_1st_reply else self.non_speech_timeout_
+            if self.asr_client_.text_updated_:
+                self.logger.warning("->" * int(secs_passed))
+                non_speech_secs_passed = 0.0
+                self.asr_client_.text_updated_ = False
+                wait_1st_reply = False
+            elif non_speech_secs_passed > non_speech_timeout:
                 self.logger.debug(f"No more transcription after {non_speech_secs_passed}s")
                 break
 
@@ -210,8 +236,8 @@ class DeviceManager:
 
     async def start(self):
         await self.connect_asr()
-        audio_data = create_wave_header()
-        await self.asr_client_.send_audio(audio_data)
+        #audio_data = create_wave_header()
+        #await self.asr_client_.send_audio(audio_data)
         #play_audio_task = asyncio.create_task(self.play_audio())
         timeout = self.asr_session_timeout_
         self.logger.debug(f"create a timeout task for  {timeout} s" )
@@ -246,7 +272,9 @@ async def main():
     logger = logging.getLogger('main')
     logger.setLevel(log_level)
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s')
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     def getch():
@@ -276,7 +304,7 @@ async def main():
         elif user_input in ['g', ' ']:
             print("Entering Cloud-based ASR-LLM.")
             device = MicDevice(config)
-            asr_client = DeepgramASRClient(config)
+            asr_client = WsDeepgramASRClient(config)
             llm_client = OpenAIGPTLLMClient(config)
             device_manager = DeviceManager(config, device, asr_client, llm_client)
             await device_manager.start()
