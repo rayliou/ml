@@ -58,6 +58,7 @@ Sample values are given above for a 16-bit stereo source.
 class MicDevice:
     CHUNK = 88200 #2 seconds
     CHUNK = 44100 #1 s
+    CHUNK = 22050 #0.5 s
     INPUT_SAMPLE_RATE = 44100
     OUTPUT_SAMPLE_RATE = 16000
     def __init__(self, config):

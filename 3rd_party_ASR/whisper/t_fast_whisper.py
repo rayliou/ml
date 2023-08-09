@@ -62,7 +62,7 @@ def main(read_time_ms=200):
             super().__init__(rate, bits)
             self.last_word_in_prev_seg_ = None
             self.text_ = ""
-            self.prepad_secs_ = 0.2
+            self.prepad_secs_ = 1
             self.padding_segment_ = np.zeros(int(self.rate_* self.prepad_secs_), dtype=np.float32)
 
         def preheat_model(self):
@@ -89,7 +89,7 @@ def main(read_time_ms=200):
             super().handle_audio_segment(audio_segment, abs_start)
 
             self.logger.info("Start transcribe")
-            segments, info = model.transcribe(audio_segment, beam_size=4,
+            segments, info = model.transcribe(audio_segment, beam_size=5,
                                               language = "en", #zh",
                                               vad_filter=False, #True,
                                               suppress_blank=False,
