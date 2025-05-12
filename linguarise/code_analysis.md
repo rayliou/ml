@@ -3,6 +3,10 @@
 
 
 ```text
+from montreal_forced_aligner.command_line.align import align_corpus_cli
+
+
+
 online/alignment.py
 30:def align_utterance_online(
 
